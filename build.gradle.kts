@@ -1,8 +1,9 @@
 plugins {
-    kotlin("jvm") version "2.4.10"
+    kotlin("jvm") version "1.9.23" // O la versión que tengas definida
+    application
 }
 
-group = "org.example"
+group = "com.ctrlcafe.scrapp"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -13,8 +14,8 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-kotlin {
-    jvmToolchain(17)
+application {
+    mainClass.set("com.ctrlcafe.scrapp.MainKt")
 }
 
 tasks.test {
