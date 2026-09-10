@@ -43,3 +43,10 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Logs y temporales de ejecución ###
+logs/
+*.log
+
+### IntelliJ IDEA completa ###
+.idea/
