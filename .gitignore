@@ -50,4 +50,5 @@ logs/
 *.log
 
 ### IntelliJ IDEA completa ###
-.idea/
+/.idea
+/.idea
