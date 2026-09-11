@@ -18,4 +18,5 @@ fun main() {
     println("Productos cargados: ${productoRepo.listar().size}")
     println("Lotes registrados: ${loteRepo.listar().size}")
     println("Ventas historicas: ${ventaRepo.listar().size}")
+
 }
