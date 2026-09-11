@@ -1,0 +1,43 @@
+package com.ctrlcafe.scrapp.vista
+
+import com.ctrlcafe.scrapp.modelo.Accion
+import com.ctrlcafe.scrapp.modelo.Usuario
+import com.ctrlcafe.scrapp.repositorio.LoteRepositorio
+import com.ctrlcafe.scrapp.repositorio.MermaRepositorio
+import com.ctrlcafe.scrapp.repositorio.ProductoRepositorio
+import com.ctrlcafe.scrapp.util.Validador
+
+class MenuOperativo(
+    private val productoRepo: ProductoRepositorio,
+    private val loteRepo: LoteRepositorio,
+    private val mermaRepo: MermaRepositorio
+) {
+    fun mostrar(usuario: Usuario) {
+        while (true) {
+            ConsolaUI.titulo("Menú Operativo")
+            println("Usuario: ${usuario.nombreCompleto}")
+            println("1. Ver productos")
+            println("2. Consultar stock y lotes")
+            println("3. Ver mermas registradas")
+            println("0. Cerrar sesión")
+
+            when (Validador.leerOpcion("Seleccione una opción: ", 0..3)) {
+                1 -> {
+                    if (usuario.puede(Accion.CONSULTAR_STOCK)) ConsolaUI.mostrarProductos(productoRepo.listar())
+                    ConsolaUI.pausa()
+                }
+                2 -> {
+                    if (usuario.puede(Accion.CONSULTAR_STOCK))
+                        ConsolaUI.mostrarLotes(loteRepo.listar(), productoRepo.listar())
+                    ConsolaUI.pausa()
+                }
+                3 -> {
+                    if (usuario.puede(Accion.CONSULTAR_STOCK))
+                        ConsolaUI.mostrarMermas(mermaRepo.listar(), productoRepo.listar())
+                    ConsolaUI.pausa()
+                }
+                0 -> return
+            }
+        }
+    }
+}
