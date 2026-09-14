@@ -34,6 +34,11 @@ class ConfiguracionMotores(margenSeguridadInicial: Double = MARGEN_POR_DEFECTO) 
             field = valor
         }
 
+    init {
+        // Asignar en init fuerza que el valor inicial pase por la validación del setter.
+        margenSeguridad = margenSeguridadInicial
+    }
+
     private val umbralesPorProducto = mutableMapOf<String, UmbralesSemaforo>()
 
     /** Umbrales del producto, o los valores por defecto si no se configuraron. */
