@@ -2,6 +2,7 @@ package com.ctrlcafe.scrapp.controlador
 
 import com.ctrlcafe.scrapp.modelo.Accion
 import com.ctrlcafe.scrapp.modelo.CausaMerma
+import com.ctrlcafe.scrapp.modelo.Lote
 import com.ctrlcafe.scrapp.modelo.Merma
 import com.ctrlcafe.scrapp.repositorio.LoteRepositorio
 import com.ctrlcafe.scrapp.repositorio.MermaRepositorio
@@ -21,8 +22,8 @@ class MermaController(
 ) {
 
     /**
-     * Registra una nueva merma en el sistema[cite: 1].
-     * REGLA CLAVE: Congela el costo unitario del producto en el momento del registro[cite: 1].
+     * Registra una nueva merma en el sistema.
+     * REGLA CLAVE: Congela el costo unitario del producto en el momento del registro.
      * Descuenta automáticamente la cantidad del lote afectado.
      */
     fun registrarMerma(
@@ -57,7 +58,7 @@ class MermaController(
             ?: throw IllegalStateException("No hay una sesión activa para registrar la merma.")
 
         // CONGELAMIENTO DEL COSTO HISTÓRICO:
-        // Guardamos el costo unitario del producto tal como está en este preciso instante[cite: 1].
+        // Guardamos el costo unitario del producto tal como está en este preciso instante.
         val costoCongelado = producto.costoUnitario
 
         val nuevaMerma = Merma(
@@ -101,7 +102,8 @@ class MermaController(
 
     /**
      * Actualiza una merma existente.
-     * REGLA DE NEGOCIO: La edición de mermas está estrictamente restringida a Administradores[cite: 1].
+     * REGLA DE NEGOCIO: La edición de mermas está estrictamente restringida a Administradores.
+     * Si cambia la cantidad, el lote se ajusta por la diferencia para que su stock siga cuadrando.
      */
     fun actualizarMerma(
         id: String,
@@ -110,13 +112,20 @@ class MermaController(
         nuevaRutaEvidencia: String,
         nuevaFecha: LocalDate
     ): Merma {
-        // Exigimos permisos administrativos explícitos para modificar mermas[cite: 1]
+        // Exigimos permisos administrativos explícitos para modificar mermas
         authController.verificarPermiso(Accion.ADMINISTRAR_PRODUCTOS) // O una acción administrativa general
 
         val mermaExistente = buscarMermaPorId(id)
 
         if (nuevaCantidad <= 0) {
             throw CantidadInvalidaException("La cantidad actualizada debe ser mayor a cero.")
+        }
+
+        // Diferencia positiva: se desperdició más y se descuenta del lote; negativa: se devuelve al lote.
+        val lote = buscarLoteDe(mermaExistente)
+        val diferencia = nuevaCantidad - mermaExistente.cantidad
+        if (diferencia > lote.cantidadDisponible) {
+            throw CantidadInvalidaException("No hay suficiente stock en el lote ${lote.id} para aumentar la merma. Disponible: ${lote.cantidadDisponible}")
         }
 
         // Mantenemos el costo unitario congelado original de la merma para no corromper el histórico
@@ -132,17 +141,28 @@ class MermaController(
             usuarioId = mermaExistente.usuarioId
         )
 
+        lote.cantidadDisponible -= diferencia
+        loteRepositorio.actualizar(lote.id, lote)
         mermaRepositorio.actualizar(id, mermaActualizada)
         return mermaActualizada
     }
 
     /**
      * Elimina un registro de merma.
-     * REGLA DE NEGOCIO: La eliminación de mermas es exclusiva de Administradores[cite: 1].
+     * REGLA DE NEGOCIO: La eliminación de mermas es exclusiva de Administradores.
+     * Las unidades de la merma eliminada vuelven al lote del que se descontaron.
      */
     fun eliminarMerma(id: String) {
         authController.verificarPermiso(Accion.ADMINISTRAR_PRODUCTOS)
-        buscarMermaPorId(id)
+        val merma = buscarMermaPorId(id)
+        val lote = buscarLoteDe(merma)
+
+        lote.cantidadDisponible += merma.cantidad
+        loteRepositorio.actualizar(lote.id, lote)
         mermaRepositorio.eliminar(id)
     }
+
+    private fun buscarLoteDe(merma: Merma): Lote =
+        loteRepositorio.buscarPorId(merma.loteId)
+            ?: throw IllegalStateException("El lote '${merma.loteId}' de la merma ${merma.id} ya no existe; no se puede ajustar su stock.")
 }

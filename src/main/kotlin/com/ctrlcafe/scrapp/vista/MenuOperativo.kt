@@ -2,14 +2,14 @@ package com.ctrlcafe.scrapp.vista
 
 import com.ctrlcafe.scrapp.modelo.Accion
 import com.ctrlcafe.scrapp.modelo.Usuario
-import com.ctrlcafe.scrapp.repositorio.LoteRepositorio
 import com.ctrlcafe.scrapp.repositorio.MermaRepositorio
 import com.ctrlcafe.scrapp.repositorio.ProductoRepositorio
+import com.ctrlcafe.scrapp.servicio.MotorSemaforo
 import com.ctrlcafe.scrapp.util.Validador
 
 class MenuOperativo(
     private val productoRepo: ProductoRepositorio,
-    private val loteRepo: LoteRepositorio,
+    private val semaforo: MotorSemaforo,
     private val mermaRepo: MermaRepositorio,
     private val registroMerma: FlujoRegistroMerma
 ) {
@@ -30,7 +30,7 @@ class MenuOperativo(
                 }
                 2 -> {
                     if (usuario.puede(Accion.CONSULTAR_STOCK))
-                        ConsolaUI.mostrarLotes(loteRepo.listar(), productoRepo.listar())
+                        ConsolaUI.mostrarLotes(semaforo.recalcularTodos(incluirAgotados = true))
                     ConsolaUI.pausa()
                 }
                 3 -> {

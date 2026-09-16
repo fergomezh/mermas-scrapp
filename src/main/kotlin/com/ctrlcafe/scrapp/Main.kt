@@ -35,8 +35,10 @@ fun main() {
 
     // 4. Vistas (Pasando las dependencias requeridas a los menús)
     val registroMerma = FlujoRegistroMerma(mermaController, orquestador, semaforo, productoRepo, mermaRepo)
-    val menuOperativo = MenuOperativo(productoRepo, loteRepo, mermaRepo, registroMerma)
-    val menuAdministrador = MenuAdministrador(productoRepo, loteRepo, mermaRepo, ventaRepo, registroMerma)
+    val menuOperativo = MenuOperativo(productoRepo, semaforo, mermaRepo, registroMerma)
+    val menuAdministrador = MenuAdministrador(
+        productoRepo, loteRepo, mermaRepo, semaforo, financiero, proyeccion, registroMerma
+    )
     val menuPrincipal = MenuPrincipal(auth, menuOperativo, menuAdministrador)
 
     // Arrancamos la aplicación
