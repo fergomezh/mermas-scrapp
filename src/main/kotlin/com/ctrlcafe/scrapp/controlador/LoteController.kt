@@ -100,7 +100,7 @@ class LoteController(
     }
 
     /**
-     * Descuenta existencias de un lote específico[cite: 1].
+     * Descuenta existencias de un lote específico.
      * Valida que el lote no esté vencido y que haya suficiente stock disponible.
      */
     fun descontarExistencias(idLote: String, cantidadADescontar: Double): Lote {

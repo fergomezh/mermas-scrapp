@@ -1,9 +1,9 @@
 package com.ctrlcafe.scrapp.vista
 
-import com.ctrlcafe.scrapp.modelo.EstadoCaducidad
-import com.ctrlcafe.scrapp.modelo.Lote
 import com.ctrlcafe.scrapp.modelo.Merma
 import com.ctrlcafe.scrapp.modelo.Producto
+import com.ctrlcafe.scrapp.servicio.EstadoLote
+import com.ctrlcafe.scrapp.servicio.ResultadoRecalculo
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -24,7 +24,9 @@ object ConsolaUI {
         println("=".repeat(78))
     }
 
-    fun separador() = println("-".repeat(78))
+    val lineaSeparadora = "-".repeat(78)
+
+    fun separador() = println(lineaSeparadora)
 
     fun pausa() {
         print("\nPresione ENTER para continuar...")
@@ -49,46 +51,23 @@ object ConsolaUI {
         }
     }
 
-    fun estado(lote: Lote): String {
-        return when (lote.estado) {
-            is EstadoCaducidad.Vigente -> "VERDE"
-            is EstadoCaducidad.ProximoAVencer -> "AMARILLO"
-            is EstadoCaducidad.Critico -> "ROJO"
-            is EstadoCaducidad.Vencido -> "NEGRO"
-        }
-    }
-
-    fun actualizarEstado(lote: Lote): EstadoCaducidad {
-        val horas = java.time.Duration.between(
-            java.time.LocalDateTime.now(),
-            lote.fechaCaducidad.atStartOfDay()
-        ).toHours()
-        return when {
-            horas < 0 -> EstadoCaducidad.Vencido
-            horas <= 24 -> EstadoCaducidad.Critico(horas)
-            horas <= 72 -> EstadoCaducidad.ProximoAVencer(horas)
-            else -> EstadoCaducidad.Vigente
-        }
-    }
-
-    fun mostrarLotes(lotes: List<Lote>, productos: List<Producto>) {
+    /** Recibe los lotes ya evaluados por `MotorSemaforo`, ordenados por urgencia. */
+    fun mostrarLotes(estados: List<EstadoLote>) {
         titulo("Monitor de lotes")
-        if (lotes.isEmpty()) {
+        if (estados.isEmpty()) {
             println("No hay lotes registrados.")
             return
         }
-        val mapa = productos.associateBy { it.id }
         println("%-10s %-28s %10s %12s %-10s %12s".format(
             "LOTE", "PRODUCTO", "DISP.", "CADUCIDAD", "ESTADO", "COSTO"
         ))
         separador()
-        lotes.sortedBy { it.fechaCaducidad }.forEach { lote ->
-            lote.estado = actualizarEstado(lote)
-            val producto = mapa[lote.productoId]?.nombre ?: lote.productoId
+        estados.forEach { estado ->
+            val lote = estado.lote
             val valor = lote.cantidadDisponible * lote.costoUnitario
             println("%-10s %-28s %10.2f %12s %-10s %12s".format(
-                lote.id, producto.take(28), lote.cantidadDisponible,
-                fecha(lote.fechaCaducidad), estado(lote), moneda(valor)
+                lote.id, estado.nombreProducto.take(28), lote.cantidadDisponible,
+                fecha(lote.fechaCaducidad), estado.estado.nivelAlerta, moneda(valor)
             ))
         }
     }
@@ -113,8 +92,37 @@ object ConsolaUI {
         }
     }
 
-    fun barra(nombre: String, valor: Double, maximo: Double, ancho: Int = 35) {
+    fun mostrarRecalculo(resultado: ResultadoRecalculo) {
+        val merma = resultado.merma
+        titulo("Merma registrada")
+        println("Merma ${merma.id} | ${resultado.nombreProducto} | Lote ${resultado.loteId}")
+        println("Causa: ${merma.causa.descripcion} | Pérdida: ${moneda(resultado.costoPerdida)}")
+        println()
+        println("%-30s %20s %20s".format("INDICADOR", "ANTES", "DESPUÉS"))
+        separador()
+        filaRecalculo("Stock del lote",
+            "%.2f".format(resultado.cantidadLoteAntes), "%.2f".format(resultado.cantidadLoteDespues))
+        filaRecalculo("Estado del lote",
+            resultado.estadoLoteAntes.nivelAlerta, resultado.estadoLoteDespues.nivelAlerta)
+        filaRecalculo("Pérdida del día",
+            moneda(resultado.perdidaDiaAntes), moneda(resultado.perdidaDiaDespues))
+        filaRecalculo("Tasa de merma (14 días)",
+            "%.2f%%".format(resultado.tasaMermaAntes * 100), "%.2f%%".format(resultado.tasaMermaDespues * 100))
+        filaRecalculo("Producción sugerida mañana",
+            "%.2f".format(resultado.sugeridaAntes), "%.2f".format(resultado.sugeridaDespues))
+
+        // Se compara el nivel y no el objeto: Critico/ProximoAVencer cambian con las horas restantes.
+        val nivelAntes = resultado.estadoLoteAntes.nivelAlerta
+        val nivelDespues = resultado.estadoLoteDespues.nivelAlerta
+        if (resultado.loteQuedoVacio) println("\nAviso: el lote ${resultado.loteId} quedó sin existencias.")
+        if (nivelAntes != nivelDespues) println("Aviso: el lote pasó de $nivelAntes a $nivelDespues.")
+    }
+
+    private fun filaRecalculo(indicador: String, antes: String, despues: String) =
+        println("%-30s %20s %20s".format(indicador, antes, despues))
+
+    fun barra(nombre: String, valor: Double, maximo: Double, ancho: Int = 35): String {
         val n = if (maximo <= 0) 0 else ((valor / maximo) * ancho).toInt().coerceIn(0, ancho)
-        println("%-28s |%s %.2f".format(nombre.take(28), "#".repeat(n), valor))
+        return "%-28s |%s %s".format(nombre.take(28), "#".repeat(n), moneda(valor))
     }
 }

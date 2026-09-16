@@ -1,20 +1,25 @@
 package com.ctrlcafe.scrapp.vista
 
-import com.ctrlcafe.scrapp.modelo.Accion
 import com.ctrlcafe.scrapp.modelo.Usuario
 import com.ctrlcafe.scrapp.repositorio.LoteRepositorio
 import com.ctrlcafe.scrapp.repositorio.MermaRepositorio
 import com.ctrlcafe.scrapp.repositorio.ProductoRepositorio
-import com.ctrlcafe.scrapp.repositorio.VentaRepositorio
+import com.ctrlcafe.scrapp.servicio.MotorFinanciero
+import com.ctrlcafe.scrapp.servicio.MotorProyeccion
+import com.ctrlcafe.scrapp.servicio.MotorSemaforo
+import com.ctrlcafe.scrapp.util.Logger
 import com.ctrlcafe.scrapp.util.Validador
+import java.io.File
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 class MenuAdministrador(
     private val productoRepo: ProductoRepositorio,
     private val loteRepo: LoteRepositorio,
     private val mermaRepo: MermaRepositorio,
-    private val ventaRepo: VentaRepositorio
+    private val semaforo: MotorSemaforo,
+    private val financiero: MotorFinanciero,
+    private val proyeccion: MotorProyeccion,
+    private val registroMerma: FlujoRegistroMerma
 ) {
     fun mostrar(usuario: Usuario) {
         while (true) {
@@ -24,93 +29,83 @@ class MenuAdministrador(
             println("2. Monitor de lotes")
             println("3. Ver mermas")
             println("4. Resumen / reporte")
+            println("5. Registrar merma")
             println("0. Cerrar sesión")
 
-            when (Validador.leerOpcion("Seleccione una opción: ", 0..4)) {
+            when (Validador.leerOpcion("Seleccione una opción: ", 0..5)) {
                 1 -> ConsolaUI.mostrarProductos(productoRepo.listar())
-                2 -> ConsolaUI.mostrarLotes(loteRepo.listar(), productoRepo.listar())
+                2 -> ConsolaUI.mostrarLotes(semaforo.recalcularTodos(incluirAgotados = true))
                 3 -> ConsolaUI.mostrarMermas(mermaRepo.listar(), productoRepo.listar())
                 4 -> mostrarReporte()
+                5 -> registroMerma.ejecutar()
                 0 -> return
             }
-            if (Validador.leerOpcion("0. Volver  |  1. Continuar: ", 0..1) == 0) continue
+            ConsolaUI.pausa()
         }
     }
 
+    /** Resumen del periodo con los motores de cálculo; se muestra en consola y se exporta igual a un .txt. */
     private fun mostrarReporte() {
         ConsolaUI.titulo("Resumen de control de mermas")
-        val productos = productoRepo.listar()
-        val lotes = loteRepo.listar()
-        val mermas = mermaRepo.listar()
+        val hoy = LocalDate.now()
+        val reporte = construirReporte(hoy.minusDays(DIAS_REPORTE - 1), hoy)
+        print(reporte)
+        exportarReporte(reporte, hoy)
+    }
 
-        lotes.forEach { it.estado = ConsolaUI.actualizarEstado(it) }
+    private fun construirReporte(desde: LocalDate, hasta: LocalDate): String = buildString {
+        val resumen = financiero.resumen(desde, hasta)
+        val semaforoTexto = semaforo.conteoPorEstado().entries.joinToString(" | ") { (nivel, total) -> "$nivel=$total" }
 
-        val verdes = lotes.count { ConsolaUI.estado(it) == "VERDE" }
-        val amarillos = lotes.count { ConsolaUI.estado(it) == "AMARILLO" }
-        val rojos = lotes.count { ConsolaUI.estado(it) == "ROJO" }
-        val negros = lotes.count { ConsolaUI.estado(it) == "NEGRO" }
+        appendLine("Periodo             : ${ConsolaUI.fecha(desde)} - ${ConsolaUI.fecha(hasta)} ($DIAS_REPORTE días)")
+        appendLine("Productos activos   : ${productoRepo.listar().size}")
+        appendLine("Lotes registrados   : ${loteRepo.listar().size}")
+        appendLine("Semáforo            : $semaforoTexto (lotes con existencias)")
+        appendLine("Pérdida del periodo : ${ConsolaUI.moneda(resumen.costoMermas)} (%.2f unidades)".format(resumen.unidadesPerdidas))
+        appendLine("Costo de producción : ${ConsolaUI.moneda(resumen.costoProduccionTotal)}")
+        appendLine("Índice de merma     : %.2f%%".format(resumen.indiceMerma))
+        resumen.advertencia?.let { appendLine("Aviso: $it") }
 
-        val perdida = mermas.sumOf { it.cantidad * it.costoUnitarioCongelado }
-        val valorInventario = lotes.sumOf { it.cantidadDisponible * it.costoUnitario }
-        val indice = if (valorInventario > 0) perdida / valorInventario * 100 else 0.0
-
-        println("Productos activos : ${productos.size}")
-        println("Lotes registrados : ${lotes.size}")
-        println("Semáforo           : VERDE=$verdes | AMARILLO=$amarillos | ROJO=$rojos | NEGRO=$negros")
-        println("Pérdida acumulada  : ${ConsolaUI.moneda(perdida)}")
-        println("Índice de merma    : %.2f%%".format(indice))
-
-        val top = mermas.groupBy { it.productoId }
-            .mapValues { (_, lista) -> lista.sumOf { it.cantidad * it.costoUnitarioCongelado } }
-            .entries.sortedByDescending { it.value }.take(5)
-        println("\nTop 5 productos críticos:")
-        val nombres = productos.associate { it.id to it.nombre }
-        val max = top.maxOfOrNull { it.value } ?: 0.0
-        if (top.isEmpty()) println("Sin mermas registradas.")
-        top.forEachIndexed { i, entry ->
-            print("${i + 1}. ")
-            ConsolaUI.barra(nombres[entry.key] ?: entry.key, entry.value, max)
+        appendLine("\nTop 5 productos críticos:")
+        if (resumen.criticos.isEmpty()) appendLine("Sin mermas registradas en el periodo.")
+        val maximo = resumen.criticos.maxOfOrNull { it.costoPerdida } ?: 0.0
+        resumen.criticos.forEachIndexed { i, critico ->
+            appendLine("${i + 1}. ${ConsolaUI.barra(critico.nombreProducto, critico.costoPerdida, maximo)}" +
+                " (%.1f%% del total)".format(critico.porcentajeDelTotal))
         }
 
-        val promedioDiario = ventasPromedioDiario()
-        val proyeccion = perdida + promedioDiario
-        println("\nProyección simple siguiente día: ${ConsolaUI.moneda(proyeccion)}")
-        println("(Base provisional: pérdida acumulada + promedio diario de ventas históricas.)")
-
-        exportarReporte(productos.size, lotes.size, verdes, amarillos, rojos, negros, perdida, indice, top, nombres, proyeccion)
+        val manana = hasta.plusDays(1)
+        val proyecciones = proyeccion.proyectarTodos(manana)
+        appendLine("\nProducción sugerida para ${ConsolaUI.fecha(manana)}:")
+        appendLine("%-28s %14s %12s %12s".format("PRODUCTO", "DEMANDA BASE", "TASA MERMA", "SUGERIDA"))
+        appendLine(ConsolaUI.lineaSeparadora)
+        proyecciones.forEach { p ->
+            appendLine("%-28s %14.2f %11.2f%% %12.2f".format(
+                p.nombreProducto.take(28), p.demandaBase, p.tasaMerma * 100, p.cantidadSugerida
+            ))
+        }
+        val conAdvertencia = proyecciones.filter { it.advertencia != null }
+        if (conAdvertencia.isNotEmpty()) {
+            appendLine("\nNotas de la proyección:")
+            conAdvertencia.forEach { appendLine("- ${it.nombreProducto}: ${it.advertencia}") }
+        }
     }
 
-    private fun ventasPromedioDiario(): Double {
-        val hoy = LocalDate.now()
-        val ventas = ventaRepo.listar().filter { ChronoUnit.DAYS.between(it.fecha, hoy) in 1..28 }
-        return if (ventas.isEmpty()) 0.0 else ventas.sumOf { it.cantidad } / 28.0
-    }
-
-    private fun exportarReporte(
-        productos: Int, lotes: Int, verdes: Int, amarillos: Int, rojos: Int, negros: Int,
-        perdida: Double, indice: Double, top: List<Map.Entry<String, Double>>,
-        nombres: Map<String, String>, proyeccion: Double
-    ) {
+    private fun exportarReporte(reporte: String, fecha: LocalDate) {
         try {
-            val dir = java.io.File("reportes")
+            val dir = File("reportes")
             if (!dir.exists()) dir.mkdirs()
-            val archivo = java.io.File(dir, "resumen_${LocalDate.now()}.txt")
-            archivo.writeText(buildString {
-                appendLine("SCRAPP - RESUMEN DE CONTROL DE MERMAS")
-                appendLine("Fecha: ${LocalDate.now()}")
-                appendLine("Productos activos: $productos")
-                appendLine("Lotes registrados: $lotes")
-                appendLine("Semáforo: VERDE=$verdes | AMARILLO=$amarillos | ROJO=$rojos | NEGRO=$negros")
-                appendLine("Pérdida acumulada: ${ConsolaUI.moneda(perdida)}")
-                appendLine("Índice de merma: %.2f%%".format(indice))
-                appendLine("\nTOP 5 PRODUCTOS CRÍTICOS")
-                top.forEachIndexed { i, e -> appendLine("${i + 1}. ${nombres[e.key] ?: e.key}: ${ConsolaUI.moneda(e.value)}") }
-                appendLine("\nProyección siguiente día: ${ConsolaUI.moneda(proyeccion)}")
-            })
+            val archivo = File(dir, "resumen_$fecha.txt")
+            archivo.writeText("SCRAPP - RESUMEN DE CONTROL DE MERMAS\nGenerado: ${ConsolaUI.fecha(fecha)}\n\n$reporte")
             println("\nReporte exportado en: ${archivo.path}")
         } catch (e: Exception) {
-            com.ctrlcafe.scrapp.util.Logger.error(MenuAdministrador::class.java, "No se pudo exportar el reporte", e)
+            Logger.error(MenuAdministrador::class.java, "No se pudo exportar el reporte", e)
             println("No fue posible exportar el reporte. Revise logs/errores.log.")
         }
+    }
+
+    companion object {
+        /** Ventana del resumen: los últimos 30 días, incluido hoy. */
+        private const val DIAS_REPORTE = 30L
     }
 }

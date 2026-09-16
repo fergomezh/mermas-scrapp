@@ -4,6 +4,7 @@ import com.ctrlcafe.scrapp.controlador.*
 import com.ctrlcafe.scrapp.repositorio.*
 import com.ctrlcafe.scrapp.servicio.*
 import com.ctrlcafe.scrapp.util.Logger
+import com.ctrlcafe.scrapp.vista.FlujoRegistroMerma
 import com.ctrlcafe.scrapp.vista.MenuAdministrador
 import com.ctrlcafe.scrapp.vista.MenuOperativo
 import com.ctrlcafe.scrapp.vista.MenuPrincipal
@@ -33,8 +34,11 @@ fun main() {
     val orquestador = OrquestadorMerma(loteRepo, mermaRepo, productoRepo, semaforo, financiero, proyeccion)
 
     // 4. Vistas (Pasando las dependencias requeridas a los menús)
-    val menuOperativo = MenuOperativo(productoRepo, loteRepo, mermaRepo)
-    val menuAdministrador = MenuAdministrador(productoRepo, loteRepo, mermaRepo, ventaRepo)
+    val registroMerma = FlujoRegistroMerma(mermaController, orquestador, semaforo, productoRepo, mermaRepo)
+    val menuOperativo = MenuOperativo(productoRepo, semaforo, mermaRepo, registroMerma)
+    val menuAdministrador = MenuAdministrador(
+        productoRepo, loteRepo, mermaRepo, semaforo, financiero, proyeccion, registroMerma
+    )
     val menuPrincipal = MenuPrincipal(auth, menuOperativo, menuAdministrador)
 
     // Arrancamos la aplicación
