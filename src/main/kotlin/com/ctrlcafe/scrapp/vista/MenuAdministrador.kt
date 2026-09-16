@@ -14,7 +14,8 @@ class MenuAdministrador(
     private val productoRepo: ProductoRepositorio,
     private val loteRepo: LoteRepositorio,
     private val mermaRepo: MermaRepositorio,
-    private val ventaRepo: VentaRepositorio
+    private val ventaRepo: VentaRepositorio,
+    private val registroMerma: FlujoRegistroMerma
 ) {
     fun mostrar(usuario: Usuario) {
         while (true) {
@@ -24,13 +25,15 @@ class MenuAdministrador(
             println("2. Monitor de lotes")
             println("3. Ver mermas")
             println("4. Resumen / reporte")
+            println("5. Registrar merma")
             println("0. Cerrar sesión")
 
-            when (Validador.leerOpcion("Seleccione una opción: ", 0..4)) {
+            when (Validador.leerOpcion("Seleccione una opción: ", 0..5)) {
                 1 -> ConsolaUI.mostrarProductos(productoRepo.listar())
                 2 -> ConsolaUI.mostrarLotes(loteRepo.listar(), productoRepo.listar())
                 3 -> ConsolaUI.mostrarMermas(mermaRepo.listar(), productoRepo.listar())
                 4 -> mostrarReporte()
+                5 -> registroMerma.ejecutar()
                 0 -> return
             }
             if (Validador.leerOpcion("0. Volver  |  1. Continuar: ", 0..1) == 0) continue

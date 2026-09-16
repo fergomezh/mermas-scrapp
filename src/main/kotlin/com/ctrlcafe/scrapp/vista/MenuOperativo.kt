@@ -10,7 +10,8 @@ import com.ctrlcafe.scrapp.util.Validador
 class MenuOperativo(
     private val productoRepo: ProductoRepositorio,
     private val loteRepo: LoteRepositorio,
-    private val mermaRepo: MermaRepositorio
+    private val mermaRepo: MermaRepositorio,
+    private val registroMerma: FlujoRegistroMerma
 ) {
     fun mostrar(usuario: Usuario) {
         while (true) {
@@ -19,9 +20,10 @@ class MenuOperativo(
             println("1. Ver productos")
             println("2. Consultar stock y lotes")
             println("3. Ver mermas registradas")
+            println("4. Registrar merma")
             println("0. Cerrar sesión")
 
-            when (Validador.leerOpcion("Seleccione una opción: ", 0..3)) {
+            when (Validador.leerOpcion("Seleccione una opción: ", 0..4)) {
                 1 -> {
                     if (usuario.puede(Accion.CONSULTAR_STOCK)) ConsolaUI.mostrarProductos(productoRepo.listar())
                     ConsolaUI.pausa()
@@ -34,6 +36,10 @@ class MenuOperativo(
                 3 -> {
                     if (usuario.puede(Accion.CONSULTAR_STOCK))
                         ConsolaUI.mostrarMermas(mermaRepo.listar(), productoRepo.listar())
+                    ConsolaUI.pausa()
+                }
+                4 -> {
+                    if (usuario.puede(Accion.REGISTRAR_MERMA)) registroMerma.ejecutar()
                     ConsolaUI.pausa()
                 }
                 0 -> return

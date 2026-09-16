@@ -4,6 +4,7 @@ import com.ctrlcafe.scrapp.modelo.EstadoCaducidad
 import com.ctrlcafe.scrapp.modelo.Lote
 import com.ctrlcafe.scrapp.modelo.Merma
 import com.ctrlcafe.scrapp.modelo.Producto
+import com.ctrlcafe.scrapp.servicio.ResultadoRecalculo
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -112,6 +113,35 @@ object ConsolaUI {
             ))
         }
     }
+
+    fun mostrarRecalculo(resultado: ResultadoRecalculo) {
+        val merma = resultado.merma
+        titulo("Merma registrada")
+        println("Merma ${merma.id} | ${resultado.nombreProducto} | Lote ${resultado.loteId}")
+        println("Causa: ${merma.causa.descripcion} | Pérdida: ${moneda(resultado.costoPerdida)}")
+        println()
+        println("%-30s %20s %20s".format("INDICADOR", "ANTES", "DESPUÉS"))
+        separador()
+        filaRecalculo("Stock del lote",
+            "%.2f".format(resultado.cantidadLoteAntes), "%.2f".format(resultado.cantidadLoteDespues))
+        filaRecalculo("Estado del lote",
+            resultado.estadoLoteAntes.nivelAlerta, resultado.estadoLoteDespues.nivelAlerta)
+        filaRecalculo("Pérdida del día",
+            moneda(resultado.perdidaDiaAntes), moneda(resultado.perdidaDiaDespues))
+        filaRecalculo("Tasa de merma (14 días)",
+            "%.2f%%".format(resultado.tasaMermaAntes * 100), "%.2f%%".format(resultado.tasaMermaDespues * 100))
+        filaRecalculo("Producción sugerida mañana",
+            "%.2f".format(resultado.sugeridaAntes), "%.2f".format(resultado.sugeridaDespues))
+
+        // Se compara el nivel y no el objeto: Critico/ProximoAVencer cambian con las horas restantes.
+        val nivelAntes = resultado.estadoLoteAntes.nivelAlerta
+        val nivelDespues = resultado.estadoLoteDespues.nivelAlerta
+        if (resultado.loteQuedoVacio) println("\nAviso: el lote ${resultado.loteId} quedó sin existencias.")
+        if (nivelAntes != nivelDespues) println("Aviso: el lote pasó de $nivelAntes a $nivelDespues.")
+    }
+
+    private fun filaRecalculo(indicador: String, antes: String, despues: String) =
+        println("%-30s %20s %20s".format(indicador, antes, despues))
 
     fun barra(nombre: String, valor: Double, maximo: Double, ancho: Int = 35) {
         val n = if (maximo <= 0) 0 else ((valor / maximo) * ancho).toInt().coerceIn(0, ancho)
