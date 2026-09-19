@@ -5,6 +5,8 @@ enum class Accion {
     CONSULTAR_STOCK,
     ADMINISTRAR_PRODUCTOS,
     ADMINISTRAR_LOTES,
+    /** Editar o eliminar mermas ya registradas; distinta de REGISTRAR_MERMA a propósito. */
+    ADMINISTRAR_MERMAS,
     VER_REPORTES_FINANCIEROS,
     CONFIGURAR_SISTEMA
 }
@@ -42,6 +44,7 @@ class Operativo(
             Accion.CONSULTAR_STOCK -> true
             Accion.ADMINISTRAR_PRODUCTOS,
             Accion.ADMINISTRAR_LOTES,
+            Accion.ADMINISTRAR_MERMAS,
             Accion.VER_REPORTES_FINANCIEROS,
             Accion.CONFIGURAR_SISTEMA -> false
         }

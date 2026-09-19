@@ -24,7 +24,8 @@ class AuthController(private val usuarioRepositorio: UsuarioRepositorio) {
      * @return El usuario autenticado si las credenciales son correctas.
      */
     fun iniciarSesion(usernameInput: String, contrasenaInput: String): Usuario {
-        val usuario = usuarioRepositorio.listar().find { it.username == usernameInput }
+        // buscarPorUsername ignora mayúsculas/minúsculas: "Admin" y "admin" son el mismo usuario.
+        val usuario = usuarioRepositorio.buscarPorUsername(usernameInput)
             ?: throw IllegalArgumentException("Usuario no encontrado.")
 
         if (usuario.contrasena != contrasenaInput) {
