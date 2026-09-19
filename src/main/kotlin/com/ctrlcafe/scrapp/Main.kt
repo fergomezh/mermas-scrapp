@@ -3,6 +3,7 @@ package com.ctrlcafe.scrapp
 import com.ctrlcafe.scrapp.controlador.*
 import com.ctrlcafe.scrapp.repositorio.*
 import com.ctrlcafe.scrapp.servicio.*
+import com.ctrlcafe.scrapp.util.EntradaAgotadaException
 import com.ctrlcafe.scrapp.util.Logger
 import com.ctrlcafe.scrapp.vista.FlujoRegistroMerma
 import com.ctrlcafe.scrapp.vista.MenuAdministrador
@@ -59,5 +60,12 @@ fun main() {
     val menuPrincipal = MenuPrincipal(auth, menuOperativo, menuAdministrador)
 
     // Arrancamos la aplicación
-    menuPrincipal.iniciar()
+    try {
+        menuPrincipal.iniciar()
+    } catch (e: EntradaAgotadaException) {
+        // Ctrl+Z, EOF o una tubería agotada: salimos ordenadamente en vez de
+        // quedarnos leyendo null para siempre.
+        Logger.info(MenuPrincipal::class.java, "Entrada estándar cerrada; finalizando.")
+        println("\n${e.message}")
+    }
 }

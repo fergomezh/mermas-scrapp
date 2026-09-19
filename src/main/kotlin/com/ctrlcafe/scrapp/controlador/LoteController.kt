@@ -39,7 +39,7 @@ class LoteController(
         productoRepositorio.buscarPorId(productoId)
             ?: throw IllegalArgumentException("No se puede registrar el lote: El producto con ID '$productoId' no existe.")
 
-        if (cantidadInicial <= 0) {
+        if (!cantidadInicial.isFinite() || cantidadInicial <= 0) {
             throw CantidadInvalidaException("La cantidad inicial del lote debe ser mayor a cero.")
         }
 
@@ -110,8 +110,8 @@ class LoteController(
         // de vencimiento en todo el sistema (apto hasta el final del día de caducidad).
         semaforo.verificarUsable(lote)
 
-        if (cantidadADescontar <= 0) {
-            throw CantidadInvalidaException("La cantidad a descontar debe ser mayor a cero.")
+        if (!cantidadADescontar.isFinite() || cantidadADescontar <= 0) {
+            throw CantidadInvalidaException("La cantidad a descontar debe ser un numero valido mayor a cero.")
         }
 
         if (lote.cantidadDisponible < cantidadADescontar) {

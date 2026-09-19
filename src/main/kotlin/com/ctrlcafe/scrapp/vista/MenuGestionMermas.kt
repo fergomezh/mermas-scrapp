@@ -59,7 +59,11 @@ class MenuGestionMermas(
         println("\nEl lote ${lote.id} tiene %.2f unidades disponibles.".format(disponible))
         println("Puede subir la cantidad hasta %.2f en total.".format(actual.cantidad + disponible))
 
-        val cantidad = Validador.leerDecimal("\nNueva cantidad [%.2f]: ".format(actual.cantidad), minimo = 0.01)
+        val cantidad = Validador.leerDecimal(
+            "\nNueva cantidad [%.2f]: ".format(actual.cantidad),
+            minimo = 0.01,
+            maximo = actual.cantidad + disponible
+        )
         val causa = elegirCausa(actual.causa) ?: return cancelado()
         val evidencia = Validador.leerRutaOUrlImagen(
             "Nueva evidencia (ENTER para conservar '${actual.rutaEvidencia}'): ",

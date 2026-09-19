@@ -37,8 +37,10 @@ class MermaController(
         // Validamos permisos para registrar mermas (lo pueden hacer operativos y administradores)
         authController.verificarPermiso(Accion.REGISTRAR_MERMA)
 
-        if (cantidad <= 0) {
-            throw CantidadInvalidaException("La cantidad de merma debe ser mayor a cero.")
+        // isFinite descarta NaN e Infinity: con NaN toda comparacion es false y
+        // el valor atravesaria este control dejando el stock del lote en NaN.
+        if (!cantidad.isFinite() || cantidad <= 0) {
+            throw CantidadInvalidaException("La cantidad de merma debe ser un numero valido mayor a cero.")
         }
 
         // Buscamos y validamos el lote
@@ -115,8 +117,8 @@ class MermaController(
 
         val mermaExistente = buscarMermaPorId(id)
 
-        if (nuevaCantidad <= 0) {
-            throw CantidadInvalidaException("La cantidad actualizada debe ser mayor a cero.")
+        if (!nuevaCantidad.isFinite() || nuevaCantidad <= 0) {
+            throw CantidadInvalidaException("La cantidad actualizada debe ser un numero valido mayor a cero.")
         }
 
         // Diferencia positiva: se desperdició más y se descuenta del lote; negativa: se devuelve al lote.

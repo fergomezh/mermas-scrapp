@@ -96,7 +96,8 @@ class MenuGestionLotes(
         val antes = lote.cantidadDisponible
         val cantidad = Validador.leerDecimal(
             "\nCantidad a descontar (disponible: %.2f): ".format(antes),
-            minimo = 0.01
+            minimo = 0.01,
+            maximo = antes
         )
         println("\nSe descontarán %.2f unidades del lote ${lote.id}.".format(cantidad))
         println("Esto NO registra una merma: use 'Registrar merma' si el producto se perdió.")
