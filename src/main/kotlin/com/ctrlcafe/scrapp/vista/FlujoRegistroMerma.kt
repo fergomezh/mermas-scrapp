@@ -33,8 +33,10 @@ class FlujoRegistroMerma(
 
         val cantidad = Validador.leerDecimal("\nCantidad a descontar (disponible: %.2f): ".format(lote.cantidadDisponible))
         val causa = elegirCausa(if (estadoLote.bloqueado) CausaMerma.VENCIMIENTO else null) ?: return cancelar()
-        val evidencia = Validador.leerTexto("\nEvidencia (ruta o descripción, ENTER para omitir): ", permitirVacio = true)
-            .ifBlank { SIN_EVIDENCIA }
+        val evidencia = Validador.leerRutaOUrlImagen(
+            "\nEvidencia simulada (URL o ruta local ej. /img/evidencia.jpg, ENTER para omitir): ",
+            permitirVacio = true
+        ).ifBlank { SIN_EVIDENCIA }
 
         val costoUnitario = productoRepo.buscarPorId(lote.productoId)?.costoUnitario ?: lote.costoUnitario
         println("\nResumen de la merma")

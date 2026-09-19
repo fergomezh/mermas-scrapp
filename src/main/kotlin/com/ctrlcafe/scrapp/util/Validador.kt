@@ -76,4 +76,27 @@ object Validador {
         mensaje: String,
         opciones: IntRange
     ): Int = leerEntero(mensaje, opciones)
+
+    /**
+     * Valida que la entrada simule una ruta de archivo local (.jpg, .png, etc.)
+     * o una URL web (http/https). Permite dejar vacío si es opcional.
+     */
+    fun leerRutaOUrlImagen(mensaje: String, permitirVacio: Boolean = true): String {
+        val extensionesValidas = listOf(".jpg", ".jpeg", ".png", ".webp")
+        while (true) {
+            val entrada = leerTexto(mensaje, permitirVacio)
+            if (entrada.isEmpty()) return entrada
+
+            val esUrl = entrada.startsWith("http://", ignoreCase = true) ||
+                    entrada.startsWith("https://", ignoreCase = true)
+            val esArchivoImagen = extensionesValidas.any { entrada.endsWith(it, ignoreCase = true) }
+            val esRutaLocal = entrada.contains("/") || entrada.contains("\\")
+
+            if (esUrl || esArchivoImagen || esRutaLocal) {
+                return entrada
+            }
+
+            println("Formato simulado no válido. Ingrese una URL (http://...) o una ruta de imagen válida (.jpg, .png).")
+        }
+    }
 }
