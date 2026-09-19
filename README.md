@@ -2,6 +2,14 @@
 
 Proyecto Kotlin/JVM para el control de mermas de CTRL+CAFE.
 
+Integrantes:
+
+Victor Emmanuel Velasco Martínez  VM251307
+Fernando José Gómez Hernández     GH251230
+José Eduardo Aquino Medrano       AM252078
+William Eduardo Montano Aguilar   MA251192
+
+
 ## Ejecución en IntelliJ IDEA
 
 1. Abrir el proyecto como proyecto Gradle.
