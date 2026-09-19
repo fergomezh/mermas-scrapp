@@ -16,3 +16,7 @@ class PermisoDenegadoException(accion: String) :
 
 class SesionNoIniciadaException :
     ScrappException("Debe iniciar sesión para realizar esta operación.")
+
+/** La operación es válida en sí misma, pero dejaría datos inconsistentes. */
+class OperacionBloqueadaException(mensaje: String) :
+    ScrappException(mensaje)

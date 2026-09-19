@@ -1,10 +1,9 @@
 package com.ctrlcafe.scrapp.vista
 
 import com.ctrlcafe.scrapp.controlador.MermaController
+import com.ctrlcafe.scrapp.controlador.ProductoController
 import com.ctrlcafe.scrapp.modelo.CausaMerma
 import com.ctrlcafe.scrapp.modelo.Merma
-import com.ctrlcafe.scrapp.repositorio.MermaRepositorio
-import com.ctrlcafe.scrapp.repositorio.ProductoRepositorio
 import com.ctrlcafe.scrapp.servicio.EstadoLote
 import com.ctrlcafe.scrapp.servicio.MotorSemaforo
 import com.ctrlcafe.scrapp.servicio.OrquestadorMerma
@@ -20,10 +19,9 @@ import com.ctrlcafe.scrapp.util.Validador
  */
 class FlujoRegistroMerma(
     private val mermaController: MermaController,
+    private val productoController: ProductoController,
     private val orquestador: OrquestadorMerma,
-    private val semaforo: MotorSemaforo,
-    private val productoRepo: ProductoRepositorio,
-    private val mermaRepo: MermaRepositorio
+    private val semaforo: MotorSemaforo
 ) {
     fun ejecutar() {
         ConsolaUI.titulo("Registrar merma")
@@ -38,7 +36,11 @@ class FlujoRegistroMerma(
             permitirVacio = true
         ).ifBlank { SIN_EVIDENCIA }
 
-        val costoUnitario = productoRepo.buscarPorId(lote.productoId)?.costoUnitario ?: lote.costoUnitario
+        // El costo se consulta por el controlador para que la vista no toque el repositorio.
+        val costoUnitario = intentar("No se pudo consultar el producto del lote") {
+            productoController.buscarProductoPorId(lote.productoId).costoUnitario
+        } ?: lote.costoUnitario
+
         println("\nResumen de la merma")
         ConsolaUI.separador()
         println("Lote             : ${lote.id} - ${estadoLote.nombreProducto}")
@@ -94,7 +96,7 @@ class FlujoRegistroMerma(
 
     /** Siguiente ID a partir del mayor existente, para no repetir IDs si se elimina una merma. */
     private fun siguienteId(): String {
-        val ultimo = mermaRepo.listar()
+        val ultimo = mermaController.listarMermas()
             .map(Merma::id)
             .filter { it.startsWith(PREFIJO_ID) }
             .mapNotNull { it.removePrefix(PREFIJO_ID).toIntOrNull() }

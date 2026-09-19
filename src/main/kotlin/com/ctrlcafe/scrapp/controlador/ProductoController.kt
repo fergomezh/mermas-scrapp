@@ -2,7 +2,10 @@ package com.ctrlcafe.scrapp.controlador
 
 import com.ctrlcafe.scrapp.modelo.Accion
 import com.ctrlcafe.scrapp.modelo.Producto
+import com.ctrlcafe.scrapp.repositorio.LoteRepositorio
+import com.ctrlcafe.scrapp.repositorio.MermaRepositorio
 import com.ctrlcafe.scrapp.repositorio.ProductoRepositorio
+import com.ctrlcafe.scrapp.util.OperacionBloqueadaException
 import com.ctrlcafe.scrapp.util.ProductoNoEncontradoException
 
 /**
@@ -11,6 +14,8 @@ import com.ctrlcafe.scrapp.util.ProductoNoEncontradoException
  */
 class ProductoController(
     private val productoRepositorio: ProductoRepositorio,
+    private val loteRepositorio: LoteRepositorio,
+    private val mermaRepositorio: MermaRepositorio,
     private val authController: AuthController
 ) {
 
@@ -27,6 +32,10 @@ class ProductoController(
         unidadMedida: String
     ): Producto {
         authController.verificarPermiso(Accion.ADMINISTRAR_PRODUCTOS)
+
+        if (productoRepositorio.buscarPorId(id) != null) {
+            throw OperacionBloqueadaException("Ya existe un producto con el ID '$id'.")
+        }
 
         val nuevoProducto = Producto(
             id = id,
@@ -45,9 +54,7 @@ class ProductoController(
      * Retorna la lista de todos los productos registrados.
      */
     fun listarProductos(): List<Producto> {
-        if (!authController.estaAutenticado()) {
-            authController.verificarPermiso(Accion.CONSULTAR_STOCK)
-        }
+        authController.verificarPermiso(Accion.CONSULTAR_STOCK)
         return productoRepositorio.listar()
     }
 
@@ -62,6 +69,9 @@ class ProductoController(
     /**
      * Actualiza los datos de un producto existente.
      * REGLA DE NEGOCIO: Modificar datos de productos requiere permisos de administración.
+     *
+     * Cambiar el costo unitario NO altera las mermas ya registradas: cada merma
+     * guarda su propio `costoUnitarioCongelado`.
      */
     fun actualizarProducto(
         id: String,
@@ -92,10 +102,23 @@ class ProductoController(
 
     /**
      * Elimina un producto del repositorio.
+     * REGLA DE NEGOCIO: no se puede eliminar un producto que todavía tenga lotes
+     * o mermas asociadas; quedarían huérfanos y el monitor y el reporte mostrarían
+     * el ID crudo en lugar del nombre.
      */
     fun eliminarProducto(id: String) {
         authController.verificarPermiso(Accion.ADMINISTRAR_PRODUCTOS)
         buscarProductoPorId(id)
+
+        val lotes = loteRepositorio.listarPorProducto(id).size
+        val mermas = mermaRepositorio.listarPorProducto(id).size
+        if (lotes > 0 || mermas > 0) {
+            throw OperacionBloqueadaException(
+                "El producto $id tiene $lotes lote(s) y $mermas merma(s) asociadas. " +
+                    "Elimine primero esos registros para no dejarlos huérfanos."
+            )
+        }
+
         productoRepositorio.eliminar(id)
     }
 }

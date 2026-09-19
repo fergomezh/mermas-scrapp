@@ -6,6 +6,9 @@ import com.ctrlcafe.scrapp.servicio.*
 import com.ctrlcafe.scrapp.util.Logger
 import com.ctrlcafe.scrapp.vista.FlujoRegistroMerma
 import com.ctrlcafe.scrapp.vista.MenuAdministrador
+import com.ctrlcafe.scrapp.vista.MenuGestionLotes
+import com.ctrlcafe.scrapp.vista.MenuGestionMermas
+import com.ctrlcafe.scrapp.vista.MenuGestionProductos
 import com.ctrlcafe.scrapp.vista.MenuOperativo
 import com.ctrlcafe.scrapp.vista.MenuPrincipal
 
@@ -30,14 +33,28 @@ fun main() {
     val proyeccion = MotorProyeccion(ventaRepo, mermaRepo, loteRepo, productoRepo, config)
 
     // 3. Controladores y Orquestador
+    // La vista NO habla con los repositorios: toda lectura pasa por un controlador,
+    // que es quien verifica el permiso del usuario en sesión.
+    val productoController = ProductoController(productoRepo, loteRepo, mermaRepo, auth)
+    val loteController = LoteController(loteRepo, productoRepo, auth, semaforo)
     val mermaController = MermaController(mermaRepo, loteRepo, productoRepo, auth)
     val orquestador = OrquestadorMerma(loteRepo, mermaRepo, productoRepo, semaforo, financiero, proyeccion)
 
     // 4. Vistas (Pasando las dependencias requeridas a los menús)
-    val registroMerma = FlujoRegistroMerma(mermaController, orquestador, semaforo, productoRepo, mermaRepo)
-    val menuOperativo = MenuOperativo(productoRepo, semaforo, mermaRepo, registroMerma)
+    val registroMerma = FlujoRegistroMerma(
+        mermaController, productoController, orquestador, semaforo
+    )
+    val menuOperativo = MenuOperativo(productoController, mermaController, semaforo, registroMerma)
+
+    // Submenus de administracion: cada uno solo conoce los controladores que usa.
+    val gestionProductos = MenuGestionProductos(productoController, loteController, semaforo)
+    val gestionLotes = MenuGestionLotes(loteController, productoController, mermaRepo, semaforo)
+    val gestionMermas = MenuGestionMermas(mermaController, productoController, loteController)
+
     val menuAdministrador = MenuAdministrador(
-        productoRepo, loteRepo, mermaRepo, semaforo, financiero, proyeccion, registroMerma
+        auth, productoController, loteController, mermaController,
+        semaforo, financiero, proyeccion, registroMerma,
+        gestionProductos, gestionLotes, gestionMermas
     )
     val menuPrincipal = MenuPrincipal(auth, menuOperativo, menuAdministrador)
 

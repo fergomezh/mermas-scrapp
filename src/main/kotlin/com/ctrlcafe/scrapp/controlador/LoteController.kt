@@ -4,8 +4,8 @@ import com.ctrlcafe.scrapp.modelo.Accion
 import com.ctrlcafe.scrapp.modelo.Lote
 import com.ctrlcafe.scrapp.repositorio.LoteRepositorio
 import com.ctrlcafe.scrapp.repositorio.ProductoRepositorio
+import com.ctrlcafe.scrapp.servicio.MotorSemaforo
 import com.ctrlcafe.scrapp.util.CantidadInvalidaException
-import com.ctrlcafe.scrapp.util.LoteVencidoException
 import java.time.LocalDate
 
 /**
@@ -15,7 +15,8 @@ import java.time.LocalDate
 class LoteController(
     private val loteRepositorio: LoteRepositorio,
     private val productoRepositorio: ProductoRepositorio,
-    private val authController: AuthController
+    private val authController: AuthController,
+    private val semaforo: MotorSemaforo
 ) {
 
     /**
@@ -75,9 +76,7 @@ class LoteController(
      * Retorna la lista de todos los lotes registrados en el sistema.
      */
     fun listarLotes(): List<Lote> {
-        if (!authController.estaAutenticado()) {
-            authController.verificarPermiso(Accion.CONSULTAR_STOCK)
-        }
+        authController.verificarPermiso(Accion.CONSULTAR_STOCK)
         return loteRepositorio.listar()
     }
 
@@ -93,25 +92,23 @@ class LoteController(
      * Lista todos los lotes asociados a un producto específico usando el método del repositorio.
      */
     fun listarLotesPorProducto(productoId: String): List<Lote> {
-        if (!authController.estaAutenticado()) {
-            authController.verificarPermiso(Accion.CONSULTAR_STOCK)
-        }
+        authController.verificarPermiso(Accion.CONSULTAR_STOCK)
         return loteRepositorio.listarPorProducto(productoId)
     }
 
     /**
-     * Descuenta existencias de un lote específico.
-     * Valida que el lote no esté vencido y que haya suficiente stock disponible.
+     * Descuenta existencias de un lote específico (consumo normal, no merma).
+     * Valida contra el semáforo que el lote no esté vencido y que haya stock suficiente.
      */
     fun descontarExistencias(idLote: String, cantidadADescontar: Double): Lote {
-        authController.verificarPermiso(Accion.CONSULTAR_STOCK)
+        // Mover inventario es una operación de gestión de lotes, no de solo lectura.
+        authController.verificarPermiso(Accion.ADMINISTRAR_LOTES)
 
         val lote = buscarLotePorId(idLote)
 
-        // Validación de caducidad
-        if (lote.fechaCaducidad.isBefore(LocalDate.now())) {
-            throw LoteVencidoException(lote.id)
-        }
+        // Validación de caducidad delegada al semáforo: así hay una sola convención
+        // de vencimiento en todo el sistema (apto hasta el final del día de caducidad).
+        semaforo.verificarUsable(lote)
 
         if (cantidadADescontar <= 0) {
             throw CantidadInvalidaException("La cantidad a descontar debe ser mayor a cero.")

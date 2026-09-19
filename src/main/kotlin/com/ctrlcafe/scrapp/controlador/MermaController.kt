@@ -86,9 +86,7 @@ class MermaController(
      * Lista todas las mermas registradas en el sistema.
      */
     fun listarMermas(): List<Merma> {
-        if (!authController.estaAutenticado()) {
-            authController.verificarPermiso(Accion.CONSULTAR_STOCK)
-        }
+        authController.verificarPermiso(Accion.CONSULTAR_STOCK)
         return mermaRepositorio.listar()
     }
 
@@ -113,7 +111,7 @@ class MermaController(
         nuevaFecha: LocalDate
     ): Merma {
         // Exigimos permisos administrativos explícitos para modificar mermas
-        authController.verificarPermiso(Accion.ADMINISTRAR_PRODUCTOS) // O una acción administrativa general
+        authController.verificarPermiso(Accion.ADMINISTRAR_MERMAS)
 
         val mermaExistente = buscarMermaPorId(id)
 
@@ -153,7 +151,7 @@ class MermaController(
      * Las unidades de la merma eliminada vuelven al lote del que se descontaron.
      */
     fun eliminarMerma(id: String) {
-        authController.verificarPermiso(Accion.ADMINISTRAR_PRODUCTOS)
+        authController.verificarPermiso(Accion.ADMINISTRAR_MERMAS)
         val merma = buscarMermaPorId(id)
         val lote = buscarLoteDe(merma)
 
