@@ -63,13 +63,3 @@ Se exporta a `reportes/resumen_AAAA-MM-DD.txt`.
 - `util/`: validaciones, excepciones y registro de errores.
 
 Los datos viven en memoria: al cerrar la aplicación se pierden. Los errores se registran en `logs/errores.log`.
-
-## Integrante 4
-
-La rama `feat/consola` contiene la base de la interfaz de consola:
-- Login y navegación por rol.
-- Menús separados para Administrador y Operativo.
-- Tablas ASCII y formato de moneda/fechas.
-- Monitor de lotes con semáforo textual.
-- Resumen y exportación a `reportes/resumen_AAAA-MM-DD.txt`.
-- Validación segura de entradas.
