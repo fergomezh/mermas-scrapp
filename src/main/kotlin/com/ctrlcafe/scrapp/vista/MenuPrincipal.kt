@@ -47,6 +47,9 @@ class MenuPrincipal(
         return try {
             // Delegamos la autenticación y apertura de sesión al AuthController
             val usuario = authController.iniciarSesion(username, password)
+            // La sesion vive en el companion object de AuthController: confirmamos que
+            // realmente quedo abierta antes de entrar al menu del rol.
+            check(authController.estaAutenticado()) { "La sesion no quedo abierta tras autenticar." }
             Logger.info(MenuPrincipal::class.java, "Inicio de sesión exitoso: $username")
             println("\nBienvenido(a), ${usuario.nombreCompleto}.")
             usuario

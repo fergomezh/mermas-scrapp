@@ -5,10 +5,19 @@ import java.time.format.DateTimeParseException
 
 object Validador {
 
+    /**
+     * Lee una línea de la consola.
+     *
+     * Si la entrada se cerró (EOF / Ctrl+Z / tubería agotada) lanza
+     * [EntradaAgotadaException] en lugar de devolver `null`: tratarlo como
+     * "entrada inválida" haría que los bucles de abajo reintentaran sin fin.
+     */
+    private fun leerLinea(): String = readLine() ?: throw EntradaAgotadaException()
+
     fun leerTexto(mensaje: String, permitirVacio: Boolean = false): String {
         while (true) {
             print(mensaje)
-            val valor = readLine()?.trim() ?: ""
+            val valor = leerLinea().trim()
             if (permitirVacio || valor.isNotEmpty()) return valor
             println("Entrada inválida. No puede quedar vacío.")
         }
@@ -17,8 +26,7 @@ object Validador {
     fun leerEntero(mensaje: String, rango: IntRange? = null): Int {
         while (true) {
             print(mensaje)
-            val valor = readLine()?.trim()
-            val numero = valor?.toIntOrNull()
+            val numero = leerLinea().trim().toIntOrNull()
 
             if (numero != null && (rango == null || numero in rango)) {
                 return numero
@@ -34,21 +42,32 @@ object Validador {
         }
     }
 
-    fun leerDecimal(mensaje: String, minimo: Double? = null): Double {
+    /**
+     * Lee un decimal dentro de [minimo]..[maximo] (ambos opcionales e inclusivos).
+     *
+     * Rechaza NaN e Infinity: `"NaN".toDoubleOrNull()` devuelve `Double.NaN`, y
+     * como toda comparación con NaN es `false`, un valor así atravesaría los
+     * controles de cantidad y dejaría el stock del lote en NaN.
+     */
+    fun leerDecimal(mensaje: String, minimo: Double? = null, maximo: Double? = null): Double {
         while (true) {
             print(mensaje)
-            val texto = readLine()?.trim()?.replace(',', '.')
-            val numero = texto?.toDoubleOrNull()
+            val texto = leerLinea().trim().replace(',', '.')
+            val numero = texto.toDoubleOrNull()
 
-            if (numero != null && (minimo == null || numero >= minimo)) {
+            if (numero != null && numero.isFinite() &&
+                (minimo == null || numero >= minimo) &&
+                (maximo == null || numero <= maximo)
+            ) {
                 return numero
             }
 
-            val detalle =
-                if (minimo != null)
-                    " mayor o igual a $minimo"
-                else
-                    ""
+            val detalle = when {
+                minimo != null && maximo != null -> " entre %.2f y %.2f".format(minimo, maximo)
+                minimo != null -> " mayor o igual a %.2f".format(minimo)
+                maximo != null -> " menor o igual a %.2f".format(maximo)
+                else -> ""
+            }
 
             println("Entrada inválida. Ingrese un número decimal$detalle.")
         }
@@ -57,7 +76,7 @@ object Validador {
     fun leerFecha(mensaje: String): LocalDate {
         while (true) {
             print(mensaje)
-            val texto = readLine()?.trim() ?: ""
+            val texto = leerLinea().trim()
 
             try {
                 return LocalDate.parse(texto)

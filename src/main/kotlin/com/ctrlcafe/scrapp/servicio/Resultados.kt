@@ -99,5 +99,12 @@ data class ResultadoRecalculo(
     val sugeridaDespues: Double
 ) {
     val loteQuedoVacio: Boolean get() = cantidadLoteDespues <= 0.0
-    val cambioEstadoLote: Boolean get() = estadoLoteAntes != estadoLoteDespues
+
+    /**
+     * Se compara el nivel de alerta y no el objeto: `Critico` y `ProximoAVencer`
+     * llevan las horas restantes dentro, así que dos instancias del mismo color
+     * salen distintas con solo pasar una hora.
+     */
+    val cambioEstadoLote: Boolean
+        get() = estadoLoteAntes.nivelAlerta != estadoLoteDespues.nivelAlerta
 }

@@ -1,16 +1,17 @@
 package com.ctrlcafe.scrapp.vista
 
-import com.ctrlcafe.scrapp.modelo.Accion
+import com.ctrlcafe.scrapp.controlador.MermaController
+import com.ctrlcafe.scrapp.controlador.ProductoController
 import com.ctrlcafe.scrapp.modelo.Usuario
-import com.ctrlcafe.scrapp.repositorio.MermaRepositorio
-import com.ctrlcafe.scrapp.repositorio.ProductoRepositorio
 import com.ctrlcafe.scrapp.servicio.MotorSemaforo
+import com.ctrlcafe.scrapp.util.ScrappException
+import com.ctrlcafe.scrapp.util.Logger
 import com.ctrlcafe.scrapp.util.Validador
 
 class MenuOperativo(
-    private val productoRepo: ProductoRepositorio,
+    private val productoController: ProductoController,
+    private val mermaController: MermaController,
     private val semaforo: MotorSemaforo,
-    private val mermaRepo: MermaRepositorio,
     private val registroMerma: FlujoRegistroMerma
 ) {
     fun mostrar(usuario: Usuario) {
@@ -24,26 +25,27 @@ class MenuOperativo(
             println("0. Cerrar sesión")
 
             when (Validador.leerOpcion("Seleccione una opción: ", 0..4)) {
-                1 -> {
-                    if (usuario.puede(Accion.CONSULTAR_STOCK)) ConsolaUI.mostrarProductos(productoRepo.listar())
-                    ConsolaUI.pausa()
+                // El control de permisos ya no se duplica aquí: cada controlador
+                // verifica la acción contra el usuario en sesión y lanza si no procede.
+                1 -> protegido { ConsolaUI.mostrarProductos(productoController.listarProductos()) }
+                2 -> protegido { ConsolaUI.mostrarLotes(semaforo.recalcularTodos(incluirAgotados = true)) }
+                3 -> protegido {
+                    ConsolaUI.mostrarMermas(mermaController.listarMermas(), productoController.listarProductos())
                 }
-                2 -> {
-                    if (usuario.puede(Accion.CONSULTAR_STOCK))
-                        ConsolaUI.mostrarLotes(semaforo.recalcularTodos(incluirAgotados = true))
-                    ConsolaUI.pausa()
-                }
-                3 -> {
-                    if (usuario.puede(Accion.CONSULTAR_STOCK))
-                        ConsolaUI.mostrarMermas(mermaRepo.listar(), productoRepo.listar())
-                    ConsolaUI.pausa()
-                }
-                4 -> {
-                    if (usuario.puede(Accion.REGISTRAR_MERMA)) registroMerma.ejecutar()
-                    ConsolaUI.pausa()
-                }
+                4 -> protegido { registroMerma.ejecutar() }
                 0 -> return
             }
+            ConsolaUI.pausa()
+        }
+    }
+
+    /** Traduce un permiso denegado o una sesión caída en un mensaje, sin tumbar el menú. */
+    private fun protegido(accion: () -> Unit) {
+        try {
+            accion()
+        } catch (e: ScrappException) {
+            Logger.error(MenuOperativo::class.java, "Operación rechazada en el menú operativo", e)
+            println("\nOperación no disponible. ${e.message}")
         }
     }
 }
